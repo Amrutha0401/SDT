@@ -205,6 +205,20 @@ class Multimodal_GatedFusion(nn.Module):
         final_rep = torch.sum(utters_three_model, dim=-2, keepdim=False)
         return final_rep
 
+class CausalConv1d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size):
+        super(CausalConv1d, self).__init__()
+        self.conv1d = nn.Conv1d(in_channels, out_channels, kernel_size, padding=0, bias=False)
+        self.kernel_size = kernel_size
+
+    def forward(self, x):
+        # Calculate the amount of padding needed
+        padding_size = self.kernel_size - 1
+        # Apply padding on the left side (i.e., before the start of the sequence)
+        x_padded = nn.functional.pad(x, (padding_size, 0))
+        # Apply the convolution
+        return self.conv1d(x_padded)
+
 class Transformer_Based_Model(nn.Module):
     def __init__(self, dataset, temp, D_text, D_visual, D_audio, n_head,
                  n_classes, hidden_dim, n_speakers, dropout):
@@ -219,9 +233,9 @@ class Transformer_Based_Model(nn.Module):
         self.speaker_embeddings = nn.Embedding(n_speakers+1, hidden_dim, padding_idx)
         
         # Temporal convolutional layers
-        self.textf_input = nn.Conv1d(D_text, hidden_dim, kernel_size=1, padding=0, bias=False)
-        self.acouf_input = nn.Conv1d(D_audio, hidden_dim, kernel_size=1, padding=0, bias=False)
-        self.visuf_input = nn.Conv1d(D_visual, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.textf_input = CausalConv1d(D_text, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.acouf_input = CausalConv1d(D_audio, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.visuf_input = CausalConv1d(D_visual, hidden_dim, kernel_size=1, padding=0, bias=False)
         
         # Intra- and Inter-modal Transformers
         self.t_t = TransformerEncoder(d_model=hidden_dim, d_ff=hidden_dim, heads=n_head, layers=1, dropout=dropout)
