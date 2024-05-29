@@ -164,7 +164,7 @@ class TransformerEncoder(nn.Module):
 
     def forward(self, x_a, x_b, mask, speaker_emb):
         seq_len_a, batch_size, _ = x_a.size()
-        mask_a = generate_causal_mask(seq_len_a)
+        causal_mask_aty = generate_causal_mask(seq_len_a)
         # Combine the causal mask with the padding mask
         combined_mask = causal_mask_a.unsqueeze(0) & mask.unsqueeze(1)
 
