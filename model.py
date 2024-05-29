@@ -172,7 +172,7 @@ class TransformerEncoder(nn.Module):
         padding_mask = mask.unsqueeze(1).to(device)  # Shape: [batch_size, 1, seq_len]
         
         # Combine the masks
-        combined_mask = causal_mask & padding_mask  # Shape: [batch_size, seq_len, seq_len]
+        combined_mask = causal_mask.to(dtype=torch.float) & padding_mask  # Shape: [batch_size, seq_len, seq_len]
         
 
         if x_a.equal(x_b):
