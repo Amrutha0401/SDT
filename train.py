@@ -19,7 +19,7 @@ def get_train_valid_sampler(trainset, valid=0.1, dataset='MELD'):
     return SubsetRandomSampler(idx[split:]), SubsetRandomSampler(idx[:split])
 
 def get_MELD_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
-    trainset = MELDDataset('data/meld_multimodal_features.pkl')
+    trainset = MELDDataset('/content/drive/MyDrive/STD_data/meld_multimodal_features.pkl')
     train_sampler, valid_sampler = get_train_valid_sampler(trainset, valid, 'MELD')
     train_loader = DataLoader(trainset,
                               batch_size=batch_size,
