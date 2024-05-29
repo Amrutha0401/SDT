@@ -88,7 +88,7 @@ class MultiHeadedAttention(nn.Module):
         scores = torch.matmul(query, key.transpose(2, 3))
 
         if mask is not None:
-            mask = mask.unsqueeze(1).expand_as(scores)
+            mask = mask.unsqueeze(1).unsqueeze(2)
             scores = scores.masked_fill(mask, -1e10)
 
         attn = self.softmax(scores)
@@ -166,8 +166,13 @@ class TransformerEncoder(nn.Module):
         batch_size, seq_len, _ = x_a.size()
 
         # Generate causal mask
-        causal_mask = generate_causal_mask(seq_len).to(x_a.device)  # Ensure the mask is on the same device
-        combined_mask = mask.eq(0).unsqueeze(1).expand(batch_size, seq_len, seq_len) & causal_mask.unsqueeze(0)
+        causal_mask = generate_causal_mask(seq_len).to(x_a.device)
+
+        if mask is not None:
+            combined_mask = mask.eq(0).unsqueeze(1).unsqueeze(2) & causal_mask.unsqueeze(0).unsqueeze(1)
+        else:
+            combined_mask = causal_mask.unsqueeze(0).unsqueeze(1)
+        
 
         if x_a.equal(x_b):
             x_b = self.pos_emb(x_b, speaker_emb)
