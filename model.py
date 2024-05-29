@@ -147,8 +147,8 @@ class TransformerEncoderLayer(nn.Module):
         out = self.dropout(context) + inputs_b
         return self.feed_forward(out)
 
-def generate_causal_mask(size):
-    return torch.tril(torch.ones((size, size), dtype=torch.bool))
+def generate_causal_mask(size, device):
+    return torch.tril(torch.ones((size, size), dtype=torch.bool, device=device))
 
 
 class TransformerEncoder(nn.Module):
@@ -163,12 +163,16 @@ class TransformerEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x_a, x_b, mask, speaker_emb):
-        batch_size, seq_len_a , _ = x_a.size()
-        print(f'batch size======={batch_size}       seq_len======{seq_len_a}')
-        causal_mask_a = generate_causal_mask(seq_len_a)
-        # Combine the causal mask with the padding mask
-        combined_mask = causal_mask_a.unsqueeze(0) & mask.unsqueeze(1)
-
+        device = x_a.device
+        batch_size, seq_len , _ = x_a.size()
+        print(f'batch size======={batch_size}       seq_len======{seq_len}')
+        causal_mask = generate_causal_mask(seq_len, device)
+        
+        causal_mask = causal_mask.unsqueeze(0)  # Shape: [1, seq_len, seq_len]
+        padding_mask = mask.unsqueeze(1).to(device)  # Shape: [batch_size, 1, seq_len]
+        
+        # Combine the masks
+        combined_mask = causal_mask & padding_mask  # Shape: [batch_size, seq_len, seq_len]
         
 
         if x_a.equal(x_b):
