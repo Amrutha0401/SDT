@@ -168,26 +168,28 @@ class TransformerEncoder(nn.Module):
         print(f'batch size======={batch_size}       seq_len======{seq_len}')
         causal_mask = generate_causal_mask(seq_len, device)
         
-        causal_mask = causal_mask.unsqueeze(0)  # Shape: [1, seq_len, seq_len]
-        padding_mask = mask.unsqueeze(1).to(device)  # Shape: [batch_size, 1, seq_len]
+        # Ensure padding mask is on the correct device and convert it to boolean
+        padding_mask = mask.unsqueeze(1).to(device).bool()  # Shape: [batch_size, 1, seq_len]
         
-        # Combine the masks
-        combined_mask = causal_mask.to & padding_mask(dtype=torch.bool)  # Shape: [batch_size, seq_len, seq_len]
-        conbined_mask = combined_mask(dtype=torch.float)
+        # Combine the masks using bitwise AND
+        combined_mask = causal_mask.unsqueeze(0) & padding_mask  # Shape: [batch_size, seq_len, seq_len]
+        
+        # Invert the combined mask for the attention mechanism
+        inverted_mask = combined_mask.eq(0).to(device).float()
         
 
         if x_a.equal(x_b):
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_b, x_b, combined_mask.eq(0))
+                x_b = self.transformer_inter[i](i, x_b, x_b, inverted_mask)
         else:
             x_a = self.pos_emb(x_a, speaker_emb)
             x_a = self.dropout(x_a)
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_a, x_b, combined_mask.eq(0))
+                x_b = self.transformer_inter[i](i, x_a, x_b, inverted_mask)
         return x_b
 
 
