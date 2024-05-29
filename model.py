@@ -89,7 +89,7 @@ class MultiHeadedAttention(nn.Module):
 
         if mask is not None:
             # mask = mask.unsqueeze(1).unsqueeze(2)
-            mask = mask.unsqueeze(1).unsqueeze(2).expand_as(scores)
+            mask = mask.unsqueeze(1).expand_as(scores)
             scores = scores.masked_fill(mask, -1e10)
 
         attn = self.softmax(scores)
@@ -134,7 +134,7 @@ class TransformerEncoderLayer(nn.Module):
             else:
                 inputs_b = inputs_b
 
-            mask = mask.unsqueeze(1)
+            # mask = mask.unsqueeze(1)
             context = self.self_attn(inputs_b, inputs_b, inputs_b, mask=mask)
         else:
             if (iter != 0):
@@ -142,7 +142,7 @@ class TransformerEncoderLayer(nn.Module):
             else:
                 inputs_b = inputs_b
 
-            mask = mask.unsqueeze(1)
+            # mask = mask.unsqueeze(1)
             context = self.self_attn(inputs_a, inputs_a, inputs_b, mask=mask)
         
         out = self.dropout(context) + inputs_b
