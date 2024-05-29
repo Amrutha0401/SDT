@@ -167,19 +167,20 @@ class TransformerEncoder(nn.Module):
 
         # Generate causal mask
         causal_mask = generate_causal_mask(seq_len).to(x_a.device)  # Ensure the mask is on the same device
+        combined_mask = mask.eq(0).unsqueeze(1).expand(batch_size, seq_len, seq_len) & causal_mask.unsqueeze(0)
 
         if x_a.equal(x_b):
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_b, x_b, mask.eq(0))
+                x_b = self.transformer_inter[i](i, x_b, x_b, combined_mask)
         else:
             x_a = self.pos_emb(x_a, speaker_emb)
             x_a = self.dropout(x_a)
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_a, x_b, mask.eq(0))
+                x_b = self.transformer_inter[i](i, x_a, x_b, combined_mask)
         return x_b
 
 
