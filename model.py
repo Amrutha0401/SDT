@@ -148,7 +148,7 @@ class TransformerEncoderLayer(nn.Module):
         return self.feed_forward(out)
 
 def generate_causal_mask(size):
-    return torch.tril(torch.ones((size, size))).unsqueeze(0).unsqueeze(0)
+    return torch.tril(torch.ones((size, size), dtype=torch.bool))
 
 
 class TransformerEncoder(nn.Module):
