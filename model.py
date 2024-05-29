@@ -163,7 +163,8 @@ class TransformerEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x_a, x_b, mask, speaker_emb):
-        seq_len_a, batch_size, _ = x_a.size()
+        batch_size, seq_len_a , _ = x_a.size()
+        print(f'batch size======={batch_size}       seq_len======{seq_len_a}')
         causal_mask_a = generate_causal_mask(seq_len_a)
         # Combine the causal mask with the padding mask
         combined_mask = causal_mask_a.unsqueeze(0) & mask.unsqueeze(1)
