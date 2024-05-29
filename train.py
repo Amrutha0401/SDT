@@ -34,7 +34,7 @@ def get_MELD_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
                               num_workers=num_workers,
                               pin_memory=pin_memory)
 
-    testset = MELDDataset('data/meld_multimodal_features.pkl', train=False)
+    testset = MELDDataset('/content/drive/MyDrive/STD_data/meld_multimodal_features.pkl', train=False)
     test_loader = DataLoader(testset,
                              batch_size=batch_size,
                              collate_fn=testset.collate_fn,
