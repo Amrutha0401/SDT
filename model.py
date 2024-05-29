@@ -147,6 +147,9 @@ class TransformerEncoderLayer(nn.Module):
         out = self.dropout(context) + inputs_b
         return self.feed_forward(out)
 
+def generate_causal_mask(size):
+    return torch.tril(torch.ones((size, size))).unsqueeze(0).unsqueeze(0)
+
 
 class TransformerEncoder(nn.Module):
     def __init__(self, d_model, d_ff, heads, layers, dropout=0.1):
@@ -160,6 +163,11 @@ class TransformerEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x_a, x_b, mask, speaker_emb):
+        batch_size, seq_len, _ = x_a.size()
+
+        # Generate causal mask
+        causal_mask = generate_causal_mask(seq_len).to(x_a.device)  # Ensure the mask is on the same device
+
         if x_a.equal(x_b):
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)

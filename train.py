@@ -82,6 +82,7 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
             optimizer.zero_grad()
         
         textf, visuf, acouf, qmask, umask, label = [d.cuda() for d in data[:-1]] if cuda else data[:-1]
+        print(f'textf_size:{textf.size()}   visuf_size:{visuf.size()}      acouf_size:{acouf.size()}    umask_size:{umask.size()}') 
         qmask = qmask.permute(1, 0, 2)
         lengths = [(umask[j] == 1).nonzero().tolist()[-1][0] + 1 for j in range(len(umask))]
 
