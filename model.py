@@ -176,7 +176,7 @@ class TransformerEncoder(nn.Module):
         combined_mask = causal_mask.unsqueeze(0) & padding_mask  # Shape: [batch_size, seq_len, seq_len]
         
         # Invert the combined mask for the attention mechanism
-        inverted_mask = combined_mask.eq(0).to(device).float()
+        inverted_mask = combined_mask.eq(0)
         
 
         if x_a.equal(x_b):
