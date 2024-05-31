@@ -183,7 +183,7 @@ if __name__ == '__main__':
 
     print('temp {}'.format(args.temp))
 
-    model = Transformer_Based_Model_unimodel(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
+    model = Transformer_Based_Model(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
                                         n_classes=n_classes,
                                         hidden_dim=args.hidden_dim,
                                         n_speakers=n_speakers,

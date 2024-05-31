@@ -252,7 +252,7 @@ class CausalConv1d(nn.Module):
         # Apply the convolution
         return self.conv1d(x_padded)
 
-class Transformer_Based_Model_unimodel(nn.Module):
+class Transformer_Based_Model(nn.Module):
     def __init__(self, dataset, temp, D_text, D_visual, D_audio, n_head,
                  n_classes, hidden_dim, n_speakers, dropout):
         super(Transformer_Based_Model, self).__init__()
