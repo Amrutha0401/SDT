@@ -7,7 +7,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from dataloader import IEMOCAPDataset, MELDDataset
-from model import MaskedNLLLoss, MaskedKLDivLoss, Transformer_Based_Model, Transformer_Based_unimodel
+from model import MaskedNLLLoss, MaskedKLDivLoss, Transformer_Based_Model, Transformer_Based_Model_diverse
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score, classification_report
 import pickle as pk
 import datetime
@@ -82,18 +82,67 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
         if train:
             optimizer.zero_grad()
         
-        textf, visuf, acouf, qmask, umask, label = [d.cuda() for d in data[:-1]] if cuda else data[:-1]
-        # print(f'textf_size:{textf.size()}   visuf_size:{visuf.size()}      acouf_size:{acouf.size()}    umask_size:{umask.size()}') 
+        textf, visuf, acouf, qmask, umask, label = [d.cuda() for d in data[:-1]] if cuda else data[:-1] 
         qmask = qmask.permute(1, 0, 2)
         lengths = [(umask[j] == 1).nonzero().tolist()[-1][0] + 1 for j in range(len(umask))]
 
+        if modality=='t' or modality=='a':
+            log_prob1, all_log_prob, all_prob, \
+            kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
+
+            lp_1 = log_prob1.view(-1, log_prob1.size()[2])
+            lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
+            labels_ = label.view(-1)
+
+            kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
+            kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
+
+            loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
+                    gamma_2 * (loss_function(lp_1, labels_, umask) ) + \
+                   gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask))
+
+        elif modality=='at':
+            log_prob1, log_prob2, all_log_prob, all_prob, \
+            kl_log_prob1, kl_log_prob2, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
+
+            lp_1 = log_prob1.view(-1, log_prob1.size()[2])
+            lp_2 = log_prob2.view(-1, log_prob2.size()[2])
+            lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
+            labels_ = label.view(-1)
+
+            kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
+            kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
+            kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
+
+
+            loss =  gamma_1 * loss_function(lp_all, labels_, umask) + \
+                    gamma_2 * (loss_function(lp_1, labels_, umask) + loss_function(lp_2, labels_, umask)) + \
+                    gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask) + kl_loss(kl_lp_2, kl_p_all, umask))
+
+        else:
+            log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
+            kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
+
+            lp_1 = log_prob1.view(-1, log_prob1.size()[2])
+            lp_2 = log_prob2.view(-1, log_prob2.size()[2])
+            lp_3 = log_prob3.view(-1, log_prob3.size()[2])
+            lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
+            labels_ = label.view(-1)
+
+            kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
+            kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
+            kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
+            kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
+
+            loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
+                    gamma_2 * (loss_function(lp_1, labels_, umask) + loss_function(lp_2, labels_, umask) + loss_function(lp_3, labels_, umask)) + \
+                   gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask) + kl_loss(kl_lp_2, kl_p_all, umask) + kl_loss(kl_lp_3, kl_p_all, umask))
+
+
+        #default
         # log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
         # kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
-
-        log_prob1, all_log_prob, all_prob, \
-        kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
         
-        #default
         # lp_1 = log_prob1.view(-1, log_prob1.size()[2])
         # lp_2 = log_prob2.view(-1, log_prob2.size()[2])
         # lp_3 = log_prob3.view(-1, log_prob3.size()[2])
@@ -105,26 +154,10 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
         # kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
         # kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
 
-        # # modified
-        lp_1 = log_prob1.view(-1, log_prob1.size()[2])
-        # lp_2 = log_prob2.view(-1, log_prob2.size()[2])
-        # lp_3 = log_prob3.view(-1, log_prob3.size()[2])
-        lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
-        labels_ = label.view(-1)
-
-        kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
-        # kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
-        # kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
-        kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
         
-        # default 
         # loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
         #         gamma_2 * (loss_function(lp_1, labels_, umask) + loss_function(lp_2, labels_, umask) + loss_function(lp_3, labels_, umask)) + \
         #        gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask) + kl_loss(kl_lp_2, kl_p_all, umask) + kl_loss(kl_lp_3, kl_p_all, umask))
-
-        loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
-                gamma_2 * (loss_function(lp_1, labels_, umask) ) + \
-               gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask))
 
         lp_ = all_prob.view(-1, all_prob.size()[2])
 
@@ -169,6 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--class-weight', action='store_true', default=True, help='use class weights')
     parser.add_argument('--Dataset', default='IEMOCAP', help='dataset to train and test')
     parser.add_argument('--Data_dir', default='./data', help='data directory to train and test')
+    parser.add_argument('--modality', default='atv', help='modality to be used for training and testing')
 
     args = parser.parse_args()
     today = datetime.datetime.now()
@@ -188,6 +222,7 @@ if __name__ == '__main__':
     n_epochs = args.epochs
     batch_size = args.batch_size
     data_path = f'{args.Data_dir}/{args.Dataset.lower()}_multimodal_features.pkl'
+    modality = args.modality
     feat2dim = {'IS10':1582, 'denseface':342, 'MELD_audio':300}
     D_audio = feat2dim['IS10'] if args.Dataset=='IEMOCAP' else feat2dim['MELD_audio']
     D_visual = feat2dim['denseface']
@@ -200,7 +235,7 @@ if __name__ == '__main__':
 
     print('temp {}'.format(args.temp))
 
-    model = Transformer_Based_unimodel(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
+    model = Transformer_Based_Model_diverse(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
                                         n_classes=n_classes,
                                         hidden_dim=args.hidden_dim,
                                         n_speakers=n_speakers,
