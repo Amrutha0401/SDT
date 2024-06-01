@@ -279,9 +279,9 @@ class Transformer_Based_Model(nn.Module):
         self.speaker_embeddings = nn.Embedding(n_speakers+1, hidden_dim, padding_idx)
         
         # Temporal convolutional layers(original)
-        self.textf_input_bidir = nn.Conv1d(D_text, hidden_dim, kernel_size=1, padding=0, bias=False)
-        self.acouf_input_bidir = nn.Conv1d(D_audio, hidden_dim, kernel_size=1, padding=0, bias=False)
-        self.visuf_input_bidir = nn.Conv1d(D_visual, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.textf_input = nn.Conv1d(D_text, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.acouf_input= nn.Conv1d(D_audio, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.visuf_input = nn.Conv1d(D_visual, hidden_dim, kernel_size=1, padding=0, bias=False)
         
         # Intra- and Inter-modal Transformers
         self.t_t = TransformerEncoder(d_model=hidden_dim, d_ff=hidden_dim, heads=n_head, layers=1, dropout=dropout)
