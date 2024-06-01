@@ -229,13 +229,14 @@ class Multimodal_GatedFusion(nn.Module):
     def __init__(self, hidden_size):
         super(Multimodal_GatedFusion, self).__init__()
         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.softmax = nn.Softmax(dim=-1)
+        self.softmax = nn.Softmax(dim=-2)  # Change the dimension for softmax
 
     def forward(self, x):
-        x_fc = self.fc(x)
+        x_new = x.unsqueeze(-2)  # Add a new dimension similar to the multimodal case
+        x_fc = self.fc(x).unsqueeze(-2)
         x_softmax = self.softmax(x_fc)
-        gated_output = x_softmax * x
-        final_rep = torch.sum(gated_output, dim=-1)
+        gated_output = x_softmax * x_new
+        final_rep = torch.sum(gated_output, dim=-2, keepdim=False)
         return final_rep
 
 class CausalConv1d(nn.Module):
