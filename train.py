@@ -121,7 +121,7 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
 
         else:
             log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
-            kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
+            kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
 
             lp_1 = log_prob1.view(-1, log_prob1.size()[2])
             lp_2 = log_prob2.view(-1, log_prob2.size()[2])
