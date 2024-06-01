@@ -410,7 +410,7 @@ class Transformer_Based_Model(nn.Module):
 class Transformer_Based_unimodel(nn.Module):
     def __init__(self, dataset, temp, D_text, D_visual, D_audio, n_head,
                  n_classes, hidden_dim, n_speakers, dropout):
-        super(Transformer_Based_Model, self).__init__()
+        super(Transformer_Based_unimodel, self).__init__()
         self.temp = temp
         self.n_classes = n_classes
         self.n_speakers = n_speakers
