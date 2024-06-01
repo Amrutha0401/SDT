@@ -7,7 +7,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from dataloader import IEMOCAPDataset, MELDDataset
-from model import MaskedNLLLoss, MaskedKLDivLoss, Transformer_Based_Model
+from model import MaskedNLLLoss, MaskedKLDivLoss, Transformer_Based_Model, Transformer_Based_unimodel
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score, classification_report
 import pickle as pk
 import datetime
