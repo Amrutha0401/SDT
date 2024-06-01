@@ -88,7 +88,7 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
 
         if modality=='t' or modality=='a':
             log_prob1, all_log_prob, all_prob, \
-            kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
+            kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality, setting)
 
             lp_1 = log_prob1.view(-1, log_prob1.size()[2])
             lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
@@ -103,7 +103,7 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
 
         elif modality=='at':
             log_prob1, log_prob2, all_log_prob, all_prob, \
-            kl_log_prob1, kl_log_prob2, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
+            kl_log_prob1, kl_log_prob2, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality, setting)
 
             lp_1 = log_prob1.view(-1, log_prob1.size()[2])
             lp_2 = log_prob2.view(-1, log_prob2.size()[2])
@@ -121,7 +121,7 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
 
         else:
             log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
-            kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality)
+            kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths, modality, setting)
 
             lp_1 = log_prob1.view(-1, log_prob1.size()[2])
             lp_2 = log_prob2.view(-1, log_prob2.size()[2])
@@ -203,6 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('--Dataset', default='IEMOCAP', help='dataset to train and test')
     parser.add_argument('--Data_dir', default='./data', help='data directory to train and test')
     parser.add_argument('--modality', default='atv', help='modality to be used for training and testing')
+    parser.add_argument('--setting', default='original', help='original for original and realtime for realtime setting')
 
     args = parser.parse_args()
     today = datetime.datetime.now()
@@ -223,6 +224,7 @@ if __name__ == '__main__':
     batch_size = args.batch_size
     data_path = f'{args.Data_dir}/{args.Dataset.lower()}_multimodal_features.pkl'
     modality = args.modality
+    setting = args.setting
     feat2dim = {'IS10':1582, 'denseface':342, 'MELD_audio':300}
     D_audio = feat2dim['IS10'] if args.Dataset=='IEMOCAP' else feat2dim['MELD_audio']
     D_visual = feat2dim['denseface']
@@ -235,7 +237,14 @@ if __name__ == '__main__':
 
     print('temp {}'.format(args.temp))
 
-    model = Transformer_Based_Model_diverse(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
+    if setting =='realtime':
+        model = Transformer_Based_Model_diverse(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
+                                        n_classes=n_classes,
+                                        hidden_dim=args.hidden_dim,
+                                        n_speakers=n_speakers,
+                                        dropout=args.dropout)
+    else:
+        model = Transformer_Based_Model(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
                                         n_classes=n_classes,
                                         hidden_dim=args.hidden_dim,
                                         n_speakers=n_speakers,

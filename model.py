@@ -127,14 +127,15 @@ class TransformerEncoderLayer(nn.Module):
         self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, iter, inputs_a, inputs_b, mask):
+    def forward(self, iter, inputs_a, inputs_b, mask, setting):
         if inputs_a.equal(inputs_b):
             if (iter != 0):
                 inputs_b = self.layer_norm(inputs_b)
             else:
                 inputs_b = inputs_b
 
-            # mask = mask.unsqueeze(1)
+            if setting != 'realtime':
+                mask = mask.unsqueeze(1)
             context = self.self_attn(inputs_b, inputs_b, inputs_b, mask=mask)
         else:
             if (iter != 0):
@@ -142,7 +143,8 @@ class TransformerEncoderLayer(nn.Module):
             else:
                 inputs_b = inputs_b
 
-            # mask = mask.unsqueeze(1)
+            if setting != 'realtime':
+                mask = mask.unsqueeze(1)
             context = self.self_attn(inputs_a, inputs_a, inputs_b, mask=mask)
         
         out = self.dropout(context) + inputs_b
@@ -163,34 +165,29 @@ class TransformerEncoder(nn.Module):
              for _ in range(layers)])
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x_a, x_b, mask, speaker_emb):
+    def forward(self, x_a, x_b, mask, speaker_emb, setting):
         device = x_a.device
         batch_size, seq_len , _ = x_a.size()
-        print(f'batch size======={batch_size}       seq_len======{seq_len}')
-        causal_mask = generate_causal_mask(seq_len, device)
+        if setting =='realtime':
+            causal_mask = generate_causal_mask(seq_len, device)
+            padding_mask = mask.unsqueeze(1).to(device).bool()  # Shape: [batch_size, 1, seq_len]
+            combined_mask = causal_mask.unsqueeze(0) & padding_mask  # Shape: [batch_size, seq_len, seq_len]
+            inverted_mask = combined_mask.eq(0)
+        else:
+            inverted_mask = mask.eq(0)
         
-        # Ensure padding mask is on the correct device and convert it to boolean
-        padding_mask = mask.unsqueeze(1).to(device).bool()  # Shape: [batch_size, 1, seq_len]
-        
-        # Combine the masks using bitwise AND
-        combined_mask = causal_mask.unsqueeze(0) & padding_mask  # Shape: [batch_size, seq_len, seq_len]
-        
-        # Invert the combined mask for the attention mechanism
-        inverted_mask = combined_mask.eq(0)
-        
-
         if x_a.equal(x_b):
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_b, x_b, inverted_mask)
+                x_b = self.transformer_inter[i](i, x_b, x_b, inverted_mask, setting)
         else:
             x_a = self.pos_emb(x_a, speaker_emb)
             x_a = self.dropout(x_a)
             x_b = self.pos_emb(x_b, speaker_emb)
             x_b = self.dropout(x_b)
             for i in range(self.layers):
-                x_b = self.transformer_inter[i](i, x_a, x_b, inverted_mask)
+                x_b = self.transformer_inter[i](i, x_a, x_b, inverted_mask, setting)
         return x_b
 
 
@@ -281,10 +278,10 @@ class Transformer_Based_Model(nn.Module):
             padding_idx = 9
         self.speaker_embeddings = nn.Embedding(n_speakers+1, hidden_dim, padding_idx)
         
-        # Temporal convolutional layers
-        self.textf_input = CausalConv1d(D_text, hidden_dim, kernel_size=1)
-        self.acouf_input = CausalConv1d(D_audio, hidden_dim, kernel_size=1)
-        self.visuf_input = CausalConv1d(D_visual, hidden_dim, kernel_size=1)
+        # Temporal convolutional layers(original)
+        self.textf_input_bidir = nn.Conv1d(D_text, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.acouf_input_bidir = nn.Conv1d(D_audio, hidden_dim, kernel_size=1, padding=0, bias=False)
+        self.visuf_input_bidir = nn.Conv1d(D_visual, hidden_dim, kernel_size=1, padding=0, bias=False)
         
         # Intra- and Inter-modal Transformers
         self.t_t = TransformerEncoder(d_model=hidden_dim, d_ff=hidden_dim, heads=n_head, layers=1, dropout=dropout)
@@ -337,7 +334,7 @@ class Transformer_Based_Model(nn.Module):
             )
         self.all_output_layer = nn.Linear(hidden_dim, n_classes)
 
-    def forward(self, textf, visuf, acouf, u_mask, qmask, dia_len):
+    def forward(self, textf, visuf, acouf, u_mask, qmask, dia_len, modality, setting):
         spk_idx = torch.argmax(qmask, -1)
         origin_spk_idx = spk_idx
         if self.n_speakers == 2:
@@ -354,17 +351,17 @@ class Transformer_Based_Model(nn.Module):
         visuf = self.visuf_input(visuf.permute(1, 2, 0)).transpose(1, 2)
 
         # Intra- and Inter-modal Transformers
-        t_t_transformer_out = self.t_t(textf, textf, u_mask, spk_embeddings)
-        a_t_transformer_out = self.a_t(acouf, textf, u_mask, spk_embeddings)
-        v_t_transformer_out = self.v_t(visuf, textf, u_mask, spk_embeddings)
+        t_t_transformer_out = self.t_t(textf, textf, u_mask, spk_embeddings, setting)
+        a_t_transformer_out = self.a_t(acouf, textf, u_mask, spk_embeddings, setting)
+        v_t_transformer_out = self.v_t(visuf, textf, u_mask, spk_embeddings, setting)
 
-        a_a_transformer_out = self.a_a(acouf, acouf, u_mask, spk_embeddings)
-        t_a_transformer_out = self.t_a(textf, acouf, u_mask, spk_embeddings)
-        v_a_transformer_out = self.v_a(visuf, acouf, u_mask, spk_embeddings)
+        a_a_transformer_out = self.a_a(acouf, acouf, u_mask, spk_embeddings, setting)
+        t_a_transformer_out = self.t_a(textf, acouf, u_mask, spk_embeddings, setting)
+        v_a_transformer_out = self.v_a(visuf, acouf, u_mask, spk_embeddings, setting)
 
-        v_v_transformer_out = self.v_v(visuf, visuf, u_mask, spk_embeddings)
-        t_v_transformer_out = self.t_v(textf, visuf, u_mask, spk_embeddings)
-        a_v_transformer_out = self.a_v(acouf, visuf, u_mask, spk_embeddings)
+        v_v_transformer_out = self.v_v(visuf, visuf, u_mask, spk_embeddings, setting)
+        t_v_transformer_out = self.t_v(textf, visuf, u_mask, spk_embeddings, setting)
+        a_v_transformer_out = self.a_v(acouf, visuf, u_mask, spk_embeddings, setting)
 
         # Unimodal-level Gated Fusion
         t_t_transformer_out = self.t_t_gate(t_t_transformer_out)
@@ -421,11 +418,11 @@ class Transformer_Based_Model_diverse(nn.Module):
             padding_idx = 9
         self.speaker_embeddings = nn.Embedding(n_speakers+1, hidden_dim, padding_idx)
         
-        # Temporal convolutional layers
+        # Temporal convolutional layers(realtime)
         self.textf_input = CausalConv1d(D_text, hidden_dim, kernel_size=1)
         self.acouf_input = CausalConv1d(D_audio, hidden_dim, kernel_size=1)
         self.visuf_input = CausalConv1d(D_visual, hidden_dim, kernel_size=1)
-        
+
         # Intra- and Inter-modal Transformers
         self.t_t = TransformerEncoder(d_model=hidden_dim, d_ff=hidden_dim, heads=n_head, layers=1, dropout=dropout)
         self.a_t = TransformerEncoder(d_model=hidden_dim, d_ff=hidden_dim, heads=n_head, layers=1, dropout=dropout)
@@ -489,7 +486,7 @@ class Transformer_Based_Model_diverse(nn.Module):
             )
         self.all_output_layer = nn.Linear(hidden_dim, n_classes)
 
-    def forward(self, textf, visuf, acouf, u_mask, qmask, dia_len, modality):
+    def forward(self, textf, visuf, acouf, u_mask, qmask, dia_len, modality, setting):
         spk_idx = torch.argmax(qmask, -1)
         origin_spk_idx = spk_idx
         if self.n_speakers == 2:
@@ -506,17 +503,17 @@ class Transformer_Based_Model_diverse(nn.Module):
         visuf = self.visuf_input(visuf.permute(1, 2, 0)).transpose(1, 2)
 
         # Intra- and Inter-modal Transformers
-        t_t_transformer_out = self.t_t(textf, textf, u_mask, spk_embeddings)
-        a_t_transformer_out = self.a_t(acouf, textf, u_mask, spk_embeddings)
-        v_t_transformer_out = self.v_t(visuf, textf, u_mask, spk_embeddings)
+        t_t_transformer_out = self.t_t(textf, textf, u_mask, spk_embeddings, setting)
+        a_t_transformer_out = self.a_t(acouf, textf, u_mask, spk_embeddings, setting)
+        v_t_transformer_out = self.v_t(visuf, textf, u_mask, spk_embeddings, setting)
 
-        a_a_transformer_out = self.a_a(acouf, acouf, u_mask, spk_embeddings)
-        t_a_transformer_out = self.t_a(textf, acouf, u_mask, spk_embeddings)
-        v_a_transformer_out = self.v_a(visuf, acouf, u_mask, spk_embeddings)
+        a_a_transformer_out = self.a_a(acouf, acouf, u_mask, spk_embeddings, setting)
+        t_a_transformer_out = self.t_a(textf, acouf, u_mask, spk_embeddings, setting)
+        v_a_transformer_out = self.v_a(visuf, acouf, u_mask, spk_embeddings, setting)
 
-        v_v_transformer_out = self.v_v(visuf, visuf, u_mask, spk_embeddings)
-        t_v_transformer_out = self.t_v(textf, visuf, u_mask, spk_embeddings)
-        a_v_transformer_out = self.a_v(acouf, visuf, u_mask, spk_embeddings)
+        v_v_transformer_out = self.v_v(visuf, visuf, u_mask, spk_embeddings, setting)
+        t_v_transformer_out = self.t_v(textf, visuf, u_mask, spk_embeddings, setting)
+        a_v_transformer_out = self.a_v(acouf, visuf, u_mask, spk_embeddings, setting)
 
         # Unimodal-level Gated Fusion
         t_t_transformer_out = self.t_t_gate(t_t_transformer_out)
