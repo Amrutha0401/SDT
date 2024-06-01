@@ -309,12 +309,24 @@ class Transformer_Based_Model(nn.Module):
         self.t_v_gate = Unimodal_GatedFusion(hidden_dim, dataset)
         self.a_v_gate = Unimodal_GatedFusion(hidden_dim, dataset)
 
-        self.features_reduce_t = nn.Linear(3 * hidden_dim, hidden_dim)
-        self.features_reduce_a = nn.Linear(3 * hidden_dim, hidden_dim)
-        self.features_reduce_v = nn.Linear(3 * hidden_dim, hidden_dim)
+        # One modality only
+        self.features_reduce_t = nn.Linear(hidden_dim, hidden_dim)  
+        self.features_reduce_a = nn.Linear(hidden_dim, hidden_dim)
+        self.features_reduce_v = nn.Linear(hidden_dim, hidden_dim)
 
-        # Multimodal-level Gated Fusion
-        self.last_gate = Multimodal_GatedFusion(hidden_dim)
+        # For 'at' modality
+        self.features_reduce_t_AT = nn.Linear(2*hidden_dim, hidden_dim)  
+        self.features_reduce_a_AT = nn.Linear(2*hidden_dim, hidden_dim)   
+
+        # One 'atv' modality
+        self.features_reduce_t_ATV = nn.Linear(3*hidden_dim, hidden_dim)  
+        self.features_reduce_a_ATV = nn.Linear(3*hidden_dim, hidden_dim)
+        self.features_reduce_v_ATV = nn.Linear(3*hidden_dim, hidden_dim)
+
+        # Multimodal-level Gated Fusion for single, double and triple modality
+        self.last_gate_one= Multimodal_GatedFusion_one(hidden_dim)
+        self.last_gate_two= Multimodal_GatedFusion_two(hidden_dim)
+        self.last_gate_three= Multimodal_GatedFusion_three(hidden_dim)
 
         # Emotion Classifier
         self.t_output_layer = nn.Sequential(
@@ -376,33 +388,87 @@ class Transformer_Based_Model(nn.Module):
         t_v_transformer_out = self.t_v_gate(t_v_transformer_out)
         a_v_transformer_out = self.a_v_gate(a_v_transformer_out)
 
-        t_transformer_out = self.features_reduce_t(torch.cat([t_t_transformer_out, a_t_transformer_out, v_t_transformer_out], dim=-1))
-        a_transformer_out = self.features_reduce_a(torch.cat([a_a_transformer_out, t_a_transformer_out, v_a_transformer_out], dim=-1))
-        v_transformer_out = self.features_reduce_v(torch.cat([v_v_transformer_out, t_v_transformer_out, a_v_transformer_out], dim=-1))
+        if modality=='t':
+            t_transformer_out = self.features_reduce_t(t_t_transformer_out) 
+            all_transformer_out = self.last_gate_one(t_transformer_out) 
 
-        # Multimodal-level Gated Fusion
-        all_transformer_out = self.last_gate(t_transformer_out, a_transformer_out, v_transformer_out)
+            # Emotion Classifier
+            t_final_out = self.t_output_layer(t_transformer_out)
+            all_final_out = self.all_output_layer(all_transformer_out)
 
-        # Emotion Classifier
-        t_final_out = self.t_output_layer(t_transformer_out)
-        a_final_out = self.a_output_layer(a_transformer_out)
-        v_final_out = self.v_output_layer(v_transformer_out)
-        all_final_out = self.all_output_layer(all_transformer_out)
+            t_log_prob = F.log_softmax(t_final_out, 2)
+            all_log_prob = F.log_softmax(all_final_out, 2)
+            all_prob = F.softmax(all_final_out, 2)
+            kl_t_log_prob = F.log_softmax(t_final_out /self.temp, 2)
+            kl_all_prob = F.softmax(all_final_out /self.temp, 2)
 
-        t_log_prob = F.log_softmax(t_final_out, 2)
-        a_log_prob = F.log_softmax(a_final_out, 2)
-        v_log_prob = F.log_softmax(v_final_out, 2)
+            return t_log_prob, all_log_prob, all_prob,\
+                   kl_t_log_prob, kl_all_prob
 
-        all_log_prob = F.log_softmax(all_final_out, 2)
-        all_prob = F.softmax(all_final_out, 2)
+        elif modality=='a':
+            a_transformer_out = self.features_reduce_a(a_a_transformer_out) 
+            all_transformer_out = self.last_gate_one(a_transformer_out) 
 
-        kl_t_log_prob = F.log_softmax(t_final_out /self.temp, 2)
-        kl_a_log_prob = F.log_softmax(a_final_out /self.temp, 2)
-        kl_v_log_prob = F.log_softmax(v_final_out /self.temp, 2)
+            # Emotion Classifier
+            a_final_out = self.a_output_layer(a_transformer_out)
+            all_final_out = self.all_output_layer(all_transformer_out)
 
-        kl_all_prob = F.softmax(all_final_out /self.temp, 2)
+            a_log_prob = F.log_softmax(a_final_out, 2)
+            all_log_prob = F.log_softmax(all_final_out, 2)
+            all_prob = F.softmax(all_final_out, 2)
+            kl_a_log_prob = F.log_softmax(a_final_out /self.temp, 2)
+            kl_all_prob = F.softmax(all_final_out /self.temp, 2)
+            return a_log_prob, all_log_prob, all_prob,\
+                   kl_a_log_prob, kl_all_prob
 
-        return t_log_prob, a_log_prob, v_log_prob, all_log_prob, all_prob, \
+        elif modality=='at':
+            t_transformer_out = self.features_reduce_t_AT(torch.cat([t_t_transformer_out, a_t_transformer_out], dim=-1))
+            a_transformer_out = self.features_reduce_a_AT(torch.cat([a_a_transformer_out, t_a_transformer_out], dim=-1))
+            all_transformer_out = self.last_gate_two(t_transformer_out, a_transformer_out) 
+
+            # Emotion Classifier
+            t_final_out = self.t_output_layer(t_transformer_out)
+            a_final_out = self.a_output_layer(a_transformer_out) 
+            all_final_out = self.all_output_layer(all_transformer_out)
+
+            t_log_prob = F.log_softmax(t_final_out, 2)
+            a_log_prob = F.log_softmax(a_final_out, 2)
+            all_log_prob = F.log_softmax(all_final_out, 2)
+            all_prob = F.softmax(all_final_out, 2)
+
+            kl_t_log_prob = F.log_softmax(t_final_out /self.temp, 2)
+            kl_a_log_prob = F.log_softmax(a_final_out /self.temp, 2)
+            kl_all_prob = F.softmax(all_final_out /self.temp, 2)
+
+            return t_log_prob, a_log_prob, all_log_prob, all_prob, \
+               kl_t_log_prob, kl_a_log_prob , kl_all_prob
+
+        else:
+            t_transformer_out = self.features_reduce_t_ATV(torch.cat([t_t_transformer_out, a_t_transformer_out, v_t_transformer_out], dim=-1))
+            a_transformer_out = self.features_reduce_a_ATV(torch.cat([a_a_transformer_out, t_a_transformer_out, v_a_transformer_out], dim=-1))
+            v_transformer_out = self.features_reduce_v_ATV(torch.cat([v_v_transformer_out, t_v_transformer_out, a_v_transformer_out], dim=-1))
+            all_transformer_out = self.last_gate_three(t_transformer_out, a_transformer_out, v_transformer_out) 
+
+            # Emotion Classifier
+            t_final_out = self.t_output_layer(t_transformer_out)
+            a_final_out = self.a_output_layer(a_transformer_out)
+            v_final_out = self.v_output_layer(v_transformer_out)
+            all_final_out = self.all_output_layer(all_transformer_out)
+
+            t_log_prob = F.log_softmax(t_final_out, 2)
+            a_log_prob = F.log_softmax(a_final_out, 2)
+            v_log_prob = F.log_softmax(v_final_out, 2)
+
+            all_log_prob = F.log_softmax(all_final_out, 2)
+            all_prob = F.softmax(all_final_out, 2)
+
+            kl_t_log_prob = F.log_softmax(t_final_out /self.temp, 2)
+            kl_a_log_prob = F.log_softmax(a_final_out /self.temp, 2)
+            kl_v_log_prob = F.log_softmax(v_final_out /self.temp, 2)
+
+            kl_all_prob = F.softmax(all_final_out /self.temp, 2)
+
+            return t_log_prob, a_log_prob, v_log_prob, all_log_prob, all_prob, \
                kl_t_log_prob, kl_a_log_prob, kl_v_log_prob, kl_all_prob
 
 class Transformer_Based_Model_diverse(nn.Module):
