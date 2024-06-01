@@ -382,14 +382,21 @@ class Transformer_Based_Model(nn.Module):
         a_transformer_out = self.features_reduce_a(torch.cat([a_a_transformer_out, t_a_transformer_out, v_a_transformer_out], dim=-1))
         v_transformer_out = self.features_reduce_v(torch.cat([v_v_transformer_out, t_v_transformer_out, a_v_transformer_out], dim=-1))
 
+        print(f't_transformer_out size = {t_transformer_out.size()}')
+
         # Multimodal-level Gated Fusion
         all_transformer_out = self.last_gate(t_transformer_out, a_transformer_out, v_transformer_out)
+
+        print(f'all_transformer_out size = {all_transformer_out.size()}')
 
         # Emotion Classifier
         t_final_out = self.t_output_layer(t_transformer_out)
         a_final_out = self.a_output_layer(a_transformer_out)
         v_final_out = self.v_output_layer(v_transformer_out)
         all_final_out = self.all_output_layer(all_transformer_out)
+
+        print(f'all_final_out size = {all_final_out.size()}')
+
 
         t_log_prob = F.log_softmax(t_final_out, 2)
         a_log_prob = F.log_softmax(a_final_out, 2)
@@ -528,9 +535,13 @@ class Transformer_Based_unimodel(nn.Module):
 
         t_transformer_out = self.features_reduce_t(t_t_transformer_out) # when only 't' modality used 
 
+        print(f't_transformer_out size = {t_transformer_out.size()}')
+
         # Multimodal-level Gated Fusion
         # all_transformer_out = self.last_gate(t_transformer_out, a_transformer_out, v_transformer_out)
-        all_transformer_out = self.last_gate(t_transformer_out)   #when only 't' modality used
+        all_transformer_out = self.last_gate(t_transformer_out)   # when only 't' modality used
+
+        print(f'all_transformer_out size = {all_transformer_out.size()}')
 
         # Emotion Classifier
         t_final_out = self.t_output_layer(t_transformer_out)

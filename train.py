@@ -87,30 +87,44 @@ def train_or_eval_model(model, loss_function, kl_loss, dataloader, epoch, optimi
         qmask = qmask.permute(1, 0, 2)
         lengths = [(umask[j] == 1).nonzero().tolist()[-1][0] + 1 for j in range(len(umask))]
 
-        # log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
-        # kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
+        log_prob1, log_prob2, log_prob3, all_log_prob, all_prob, \
+        kl_log_prob1, kl_log_prob2, kl_log_prob3, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
 
-        log_prob1, all_log_prob, all_prob, \
-        kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
+        # log_prob1, all_log_prob, all_prob, \
+        # kl_log_prob1, kl_all_prob = model(textf, visuf, acouf, umask, qmask, lengths)
         
+        #default
         lp_1 = log_prob1.view(-1, log_prob1.size()[2])
-        # lp_2 = log_prob2.view(-1, log_prob2.size()[2])
-        # lp_3 = log_prob3.view(-1, log_prob3.size()[2])
+        lp_2 = log_prob2.view(-1, log_prob2.size()[2])
+        lp_3 = log_prob3.view(-1, log_prob3.size()[2])
         lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
         labels_ = label.view(-1)
 
         kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
-        # kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
-        # kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
+        kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
+        kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
         kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
-        
-        # loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
-        #         gamma_2 * (loss_function(lp_1, labels_, umask) + loss_function(lp_2, labels_, umask) + loss_function(lp_3, labels_, umask)) + \
-        #        gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask) + kl_loss(kl_lp_2, kl_p_all, umask) + kl_loss(kl_lp_3, kl_p_all, umask))
 
+        # # modified
+        # lp_1 = log_prob1.view(-1, log_prob1.size()[2])
+        # # lp_2 = log_prob2.view(-1, log_prob2.size()[2])
+        # # lp_3 = log_prob3.view(-1, log_prob3.size()[2])
+        # lp_all = all_log_prob.view(-1, all_log_prob.size()[2])
+        # labels_ = label.view(-1)
+
+        # kl_lp_1 = kl_log_prob1.view(-1, kl_log_prob1.size()[2])
+        # # kl_lp_2 = kl_log_prob2.view(-1, kl_log_prob2.size()[2])
+        # # kl_lp_3 = kl_log_prob3.view(-1, kl_log_prob3.size()[2])
+        # kl_p_all = kl_all_prob.view(-1, kl_all_prob.size()[2])
+        
+        # default 
         loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
-                gamma_2 * (loss_function(lp_1, labels_, umask) ) + \
-               gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask))
+                gamma_2 * (loss_function(lp_1, labels_, umask) + loss_function(lp_2, labels_, umask) + loss_function(lp_3, labels_, umask)) + \
+               gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask) + kl_loss(kl_lp_2, kl_p_all, umask) + kl_loss(kl_lp_3, kl_p_all, umask))
+
+        # loss = gamma_1 * loss_function(lp_all, labels_, umask) + \
+        #         gamma_2 * (loss_function(lp_1, labels_, umask) ) + \
+        #        gamma_3 * (kl_loss(kl_lp_1, kl_p_all, umask))
 
         lp_ = all_prob.view(-1, all_prob.size()[2])
 
@@ -186,7 +200,7 @@ if __name__ == '__main__':
 
     print('temp {}'.format(args.temp))
 
-    model = Transformer_Based_unimodel(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
+    model = Transformer_Based_Model(args.Dataset, args.temp, D_text, D_visual, D_audio, args.n_head,
                                         n_classes=n_classes,
                                         hidden_dim=args.hidden_dim,
                                         n_speakers=n_speakers,
