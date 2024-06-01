@@ -173,7 +173,7 @@ if __name__ == '__main__':
     cuda = args.cuda
     n_epochs = args.epochs
     batch_size = args.batch_size
-    data_path = f'{data_dir}/{args.Dataset.lower()}_multimodal_features.pkl'
+    data_path = f'{args.Data_dir}/{args.Dataset.lower()}_multimodal_features.pkl'
     feat2dim = {'IS10':1582, 'denseface':342, 'MELD_audio':300}
     D_audio = feat2dim['IS10'] if args.Dataset=='IEMOCAP' else feat2dim['MELD_audio']
     D_visual = feat2dim['denseface']
