@@ -207,51 +207,36 @@ class Unimodal_GatedFusion(nn.Module):
         final_rep = z * a
         return final_rep
 
-# class Multimodal_GatedFusion(nn.Module):
-#     def __init__(self, hidden_size):
-#         super(Multimodal_GatedFusion, self).__init__()
-#         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
-#         self.softmax = nn.Softmax(dim=-2)
-
-#     def forward(self, a, b, c):
-#         print(f'size of a={a.size()}')
-#         print(f'size of b={b.size()}')
-#         print(f'size of c={c.size()}')
-
-#         a_new = a.unsqueeze(-2)
-#         b_new = b.unsqueeze(-2)
-#         c_new = c.unsqueeze(-2)
-
-#         print(f'size of a_new={a_new.size()}')
-#         print(f'size of b_new={b_new.size()}')
-#         print(f'size of c_new={c_new.size()}')
-
-#         utters = torch.cat([a_new, b_new, c_new], dim=-2)
-        
-#         print(f'size of utters = {utters.size()}')
-#         utters_fc = torch.cat([self.fc(a).unsqueeze(-2), self.fc(b).unsqueeze(-2), self.fc(c).unsqueeze(-2)], dim=-2)
-#         print(f'size of utters_fc = {utters_fc.size()}')
-#         utters_softmax = self.softmax(utters_fc)
-#         utters_three_model = utters_softmax * utters
-#         print(f'size of utters_three_model = {utters_three_model.size()}')
-#         final_rep = torch.sum(utters_three_model, dim=-2, keepdim=False)
-#         print(f'size of final_rep = {final_rep.size()}')
-     
-#         return final_rep
-
-# used for single modality
 class Multimodal_GatedFusion(nn.Module):
     def __init__(self, hidden_size):
         super(Multimodal_GatedFusion, self).__init__()
         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.softmax = nn.Softmax(dim=-1)
+        self.softmax = nn.Softmax(dim=-2)
 
-    def forward(self, x):
-        x_fc = self.fc(x)
-        x_softmax = self.softmax(x_fc)
-        gated_output = x_softmax * x
-        final_rep = torch.sum(gated_output, dim=-1)
+    def forward(self, a, b, c):
+        a_new = a.unsqueeze(-2)
+        b_new = b.unsqueeze(-2)
+        c_new = c.unsqueeze(-2)
+        utters = torch.cat([a_new, b_new, c_new], dim=-2)
+        utters_fc = torch.cat([self.fc(a).unsqueeze(-2), self.fc(b).unsqueeze(-2), self.fc(c).unsqueeze(-2)], dim=-2)  
+        utters_softmax = self.softmax(utters_fc)
+        utters_three_model = utters_softmax * utters        
+        final_rep = torch.sum(utters_three_model, dim=-2, keepdim=False) 
         return final_rep
+
+# used for single modality
+# class Multimodal_GatedFusion(nn.Module):
+#     def __init__(self, hidden_size):
+#         super(Multimodal_GatedFusion, self).__init__()
+#         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
+#         self.softmax = nn.Softmax(dim=-1)
+
+#     def forward(self, x):
+#         x_fc = self.fc(x)
+#         x_softmax = self.softmax(x_fc)
+#         gated_output = x_softmax * x
+#         final_rep = torch.sum(gated_output, dim=-1)
+#         return final_rep
 
 class CausalConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size):
