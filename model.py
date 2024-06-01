@@ -209,7 +209,7 @@ class Unimodal_GatedFusion(nn.Module):
 
 class Multimodal_GatedFusion_three(nn.Module):
     def __init__(self, hidden_size):
-        super(Multimodal_GatedFusion, self).__init__()
+        super(Multimodal_GatedFusion_three, self).__init__()
         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
         self.softmax = nn.Softmax(dim=-2)
 
@@ -226,7 +226,7 @@ class Multimodal_GatedFusion_three(nn.Module):
 
 class Multimodal_GatedFusion_two(nn.Module):
     def __init__(self, hidden_size):
-        super(Multimodal_GatedFusion, self).__init__()
+        super(Multimodal_GatedFusion_two, self).__init__()
         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
         self.softmax = nn.Softmax(dim=-2)
 
@@ -242,7 +242,7 @@ class Multimodal_GatedFusion_two(nn.Module):
 
 class Multimodal_GatedFusion_one(nn.Module):
     def __init__(self, hidden_size):
-        super(Multimodal_GatedFusion, self).__init__()
+        super(Multimodal_GatedFusion_one, self).__init__()
         self.fc = nn.Linear(hidden_size, hidden_size, bias=False)
         self.softmax = nn.Softmax(dim=-2) 
 
