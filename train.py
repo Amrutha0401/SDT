@@ -19,7 +19,8 @@ def get_train_valid_sampler(trainset, valid=0.1, dataset='MELD'):
     return SubsetRandomSampler(idx[split:]), SubsetRandomSampler(idx[:split])
 
 def get_MELD_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
-    trainset = MELDDataset('/content/drive/MyDrive/STD_data/meld_multimodal_features.pkl')
+    # trainset = MELDDataset('/content/drive/MyDrive/STD_data/meld_multimodal_features.pkl')
+    trainset = MELDDataset(data_path)
     train_sampler, valid_sampler = get_train_valid_sampler(trainset, valid, 'MELD')
     train_loader = DataLoader(trainset,
                               batch_size=batch_size,
@@ -34,7 +35,7 @@ def get_MELD_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
                               num_workers=num_workers,
                               pin_memory=pin_memory)
 
-    testset = MELDDataset('/content/drive/MyDrive/STD_data/meld_multimodal_features.pkl', train=False)
+    testset = MELDDataset(data_path, train=False)
     test_loader = DataLoader(testset,
                              batch_size=batch_size,
                              collate_fn=testset.collate_fn,
@@ -44,7 +45,7 @@ def get_MELD_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
 
 
 def get_IEMOCAP_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=False):
-    trainset = IEMOCAPDataset()
+    trainset = IEMOCAPDataset(data_path)
     train_sampler, valid_sampler = get_train_valid_sampler(trainset, valid)
     train_loader = DataLoader(trainset,
                               batch_size=batch_size,
@@ -59,7 +60,7 @@ def get_IEMOCAP_loaders(batch_size=32, valid=0.1, num_workers=0, pin_memory=Fals
                               num_workers=num_workers,
                               pin_memory=pin_memory)
 
-    testset = IEMOCAPDataset(train=False)
+    testset = IEMOCAPDataset(data_path, train=False)
     test_loader = DataLoader(testset,
                              batch_size=batch_size,
                              collate_fn=testset.collate_fn,
@@ -153,6 +154,7 @@ if __name__ == '__main__':
     parser.add_argument('--tensorboard', action='store_true', default=False, help='Enables tensorboard log')
     parser.add_argument('--class-weight', action='store_true', default=True, help='use class weights')
     parser.add_argument('--Dataset', default='IEMOCAP', help='dataset to train and test')
+    parser.add_argument('--Data_dir', default='./data', help='data directory to train and test')
 
     args = parser.parse_args()
     today = datetime.datetime.now()
@@ -171,6 +173,7 @@ if __name__ == '__main__':
     cuda = args.cuda
     n_epochs = args.epochs
     batch_size = args.batch_size
+    data_path = f'{data_dir}/{args.Dataset.lower()}_multimodal_features.pkl'
     feat2dim = {'IS10':1582, 'denseface':342, 'MELD_audio':300}
     D_audio = feat2dim['IS10'] if args.Dataset=='IEMOCAP' else feat2dim['MELD_audio']
     D_visual = feat2dim['denseface']
