@@ -4,7 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-
+'''/
+Ritesh
+changes made:
+1. casual masking in transfromer encoder
+2. casual convolution in Transformer encoder
+3. introduced a new arugument modality ['atv', 'at', 'a', 't']
+4. Transformer_Based_Model_diverse is the realtime model and Transformer_Based_Model is the  original one
+/'''
 class MaskedKLDivLoss(nn.Module):
     def __init__(self):
         super(MaskedKLDivLoss, self).__init__()
@@ -134,6 +141,7 @@ class TransformerEncoderLayer(nn.Module):
             else:
                 inputs_b = inputs_b
 
+            #Ritesh: just fixing dimensional inconsistencies that occured coz of casual masking
             if setting != 'realtime':
                 mask = mask.unsqueeze(1)
             context = self.self_attn(inputs_b, inputs_b, inputs_b, mask=mask)
@@ -149,7 +157,10 @@ class TransformerEncoderLayer(nn.Module):
         
         out = self.dropout(context) + inputs_b
         return self.feed_forward(out)
-
+'''/
+Ritesh 
+Function for making casual mask
+/'''
 def generate_causal_mask(size, device):
     return torch.tril(torch.ones((size, size), dtype=torch.bool, device=device))
 
@@ -165,6 +176,9 @@ class TransformerEncoder(nn.Module):
              for _ in range(layers)])
         self.dropout = nn.Dropout(dropout)
 
+    '''/Ritesh
+    have designed and applied a casual mask for each batch so that to attention is given only to past utterances 
+    /'''
     def forward(self, x_a, x_b, mask, speaker_emb, setting):
         device = x_a.device
         batch_size, seq_len , _ = x_a.size()
@@ -204,6 +218,12 @@ class Unimodal_GatedFusion(nn.Module):
         final_rep = z * a
         return final_rep
 
+'''/
+Ritesh:
+have made three Multimodal_GatedFusion functions used for different modalities
+/'''
+
+# for atv
 class Multimodal_GatedFusion_three(nn.Module):
     def __init__(self, hidden_size):
         super(Multimodal_GatedFusion_three, self).__init__()
@@ -221,6 +241,7 @@ class Multimodal_GatedFusion_three(nn.Module):
         final_rep = torch.sum(utters_three_model, dim=-2, keepdim=False) 
         return final_rep
 
+# for at
 class Multimodal_GatedFusion_two(nn.Module):
     def __init__(self, hidden_size):
         super(Multimodal_GatedFusion_two, self).__init__()
@@ -237,6 +258,7 @@ class Multimodal_GatedFusion_two(nn.Module):
         final_rep = torch.sum(utters_two_model, dim=-2, keepdim=False) 
         return final_rep
 
+# for a, t
 class Multimodal_GatedFusion_one(nn.Module):
     def __init__(self, hidden_size):
         super(Multimodal_GatedFusion_one, self).__init__()
@@ -251,6 +273,9 @@ class Multimodal_GatedFusion_one(nn.Module):
         final_rep = torch.sum(gated_output, dim=-2, keepdim=False)
         return final_rep
 
+'''/Ritesh
+introduced casual convolution for that features from future utterances we dont consider future utterances in representation of any utterance
+/'''
 class CausalConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size):
         super(CausalConv1d, self).__init__()
@@ -471,6 +496,12 @@ class Transformer_Based_Model(nn.Module):
             return t_log_prob, a_log_prob, v_log_prob, all_log_prob, all_prob, \
                kl_t_log_prob, kl_a_log_prob, kl_v_log_prob, kl_all_prob
 
+'''/Ritesh
+This is the realtime model:
+Changes:
+1. used casual convolution
+2. casual masking in TransformerEncoder
+/'''
 class Transformer_Based_Model_diverse(nn.Module):
     def __init__(self, dataset, temp, D_text, D_visual, D_audio, n_head,
                  n_classes, hidden_dim, n_speakers, dropout):
